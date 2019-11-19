@@ -1,74 +1,84 @@
-'use strict'
+'use strict';
 
-// npm packages - 3rd party
+// Dependecies (express, cors, dotenv)
 
-// npm packages - 3rd party
-
-// DOTENV (Read our Environment Variables) -- UpperCase
-require('dotenv').config()
-
-// Express Server
-// Express does all the headers (envelope stuff)
+require('dotenv').config();
 const express = require('express');
-
-// CORS = Cross Origin Resource Sharing
 const cors = require('cors');
+const superagent = require('superagent');
 
-// application constant
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use( cors() );
+const server = express();
 
-app.get('/location', (request, response) => {
-    // send the users current location back to them
-    const geoData = require('./data/geo.json');
-    const city = request.query.data;
-    const locationData = new Location(city, geoData);
-    
-    response.send(locationData);
-  });
-  
-  function Location(city, geoData) {
-    this.search_query = city;
-    this.formatted_query = geoData.results[0].formatted_address;
-    this.latitude = geoData.results[0].geometry.location.lat;
-    this.longitude = geoData.results[0].geometry.location.lng;
-  }
-  
-  
+server.use( cors() );
 
+// make the the callBack function a seprate fuctions :locationHandler,weatherHandler
 
-  app.get('/weather',(request,response) => {
-      //send the users the weather forecast
-      const weathData= require('./data/darksky.json')
-    //   const city = request.query.data;
-      const weatherData=new Weather(weathData)
+server.get('/location', locationHandler);
+server.get('/weather', weatherHandler);
 
-      response.send(weatherData);
+function locationHandler(req,res) {
+  // Query String = ?a=b&c=d
+  getLocation(req.query.data)
+    .then( (locationData) => res.status(200).json(locationData) );
+}
 
-  });
+function getLocation(city) {
+  // No longer get from file
+  // let data = require('./data/geo.json');
 
-  function Weather(weathData){
+  // Get it from Google Directly`
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${city}&key=${process.env.API}`
 
-    this.forecast=weathData.daily.data[0].summary;
-    this.time=weathData.daily.data[0].time;
-  }
+  return superagent.get(url)
+    .then( data => {
+      return new Location(city, data.body);
+    })
 
+}
 
+function Location(city, data) {
+  this.search_query = city;
+  this.formatted_query = data.results[0].formatted_address;
+  this.latitude = data.results[0].geometry.location.lat;
+  this.longitude = data.results[0].geometry.location.lng;
+
+}
 
 
+// WEATHER
+// ------------------------------- >>>>>>>>>>> //
 
-  // When an error happens ...
-app.use('*', (request, response) =>{
-    response.status(404).send('Not Found');
-  });
-  
-  app.use( (error, request, response) => {
-    response.status(500).send(error);
-  });
+function weatherHandler(req,res) {
+  // Query String = ?a=b&c=d
+  getWeather(req.query.data)
+    .then( weatherData => res.status(200).json(weatherData) );
+
+}
+
+function getWeather(query) {
+  // let data = require('./data/darksky.json');
+  const url = `https://api.darksky.net/forecast/${process.env.DARK_SKY}/${query.latitude},${query.longitude}`;
+  return superagent.get(url)
+    .then( data => {
+      let weather = data.body;
+      return weather.daily.data.map( (day) => {
+        return new Weather(day);
+      });
+    });
+}
+
+function Weather(day) {
+  this.forecast = day.summary;
+  this.time = new Date(day.time * 1000).toDateString();
+}
 
 
-  app.listen(PORT, () => {
-    console.log(`listening on PORT ${PORT}`);
-  });
+server.use('*', (req,res) => {
+ 
+
+  res.status(404).send('NOT FOUND!');
+});
+
+server.listen( PORT, () => console.log('hello world, from port', PORT));
