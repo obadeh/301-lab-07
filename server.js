@@ -9,14 +9,14 @@ const superagent = require('superagent');
 
 const PORT = process.env.PORT || 3000;
 
-const server = express();
+const app = express();
 
-server.use( cors() );
+app.use( cors() );
 
 // make the the callBack function a seprate fuctions :locationHandler,weatherHandler
 
-server.get('/location', locationHandler);
-server.get('/weather', weatherHandler);
+app.get('/location', locationHandler);
+app.get('/weather', weatherHandler);
 
 function locationHandler(req,res) {
   // Query String = ?a=b&c=d
@@ -75,10 +75,10 @@ function Weather(day) {
 }
 
 
-server.use('*', (req,res) => {
+app.use('*', (req,res) => {
  
 
   res.status(404).send('NOT FOUND!');
 });
 
-server.listen( PORT, () => console.log('hello world, from port', PORT));
+app.listen( PORT, () => console.log('hello world, from port', PORT));
